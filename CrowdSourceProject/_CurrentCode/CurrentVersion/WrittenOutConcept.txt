@@ -1,0 +1,51 @@
+Topic Messages Of Support
+
+Design Scheme
+
+User gets feedback of Current Quality of Their Ratings
+User gets feedback of Current Quality of Their Feedback
+
+User is prompted to rate a response to a question
+User is prompted to add their response
+
+- Compare Responses to Prototypical User Across "Clusters"
+  Supervised - Neg, Pos, Neutral - As defined by initiator
+	Update Protypical Users, by finding next closest match
+	
+  Unsupervised - Average choices of all new users to create Exemplar Users
+  
+New Content - Users can add content arbitrarily 
+
+Add New Content to List of Content Options
+
+Content Selection - 
+	Base content sample on what similar users chose for one choice
+	Base content sample on average user selection
+
+After Round Ends - Output Score, and Current Generation Of Responses
+Move on to next iteration
+
+
+
+UI?
+
+Version 2:
+
+Stack responses - Get current response total, stack onto it new content
+Demographic information
+Feedback Mechanism For compeling continual play
+
+Version 3: Splitting
+  Build model of users - get new users:
+  If division of users similarity > ThresholdX
+     Split task into sub narratives 
+	    Users are probabilistically shown narratives that are closer to their group
+		
+		Getting multiple tasks of same type.
+	   
+
+
+GUI choices
+GITHUB
+
+  
