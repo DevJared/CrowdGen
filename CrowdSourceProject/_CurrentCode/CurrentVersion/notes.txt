@@ -1,2 +1,14 @@
 http://readwrite.com/2013/09/30/understanding-github-a-journey-for-beginners-part-1
 http://www.codeproject.com/Articles/457305/Basic-Git-Command-Line-Reference-for-Windows-Users
+$ git checkout -b feature_branch_name
+... edit files, add and commit ...
+$ git push -u origin feature_branch_name
+gitk
+
+
+
+git diff --name-only --diff-filter=U
+
+You can do git add -u so that it will only stage the modified files.
+
+You can also do git commit -a to commit only the modifications.
