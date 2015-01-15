@@ -14,7 +14,7 @@ class Database():
         self.choices = [(1,"Don't feel so down!",0.25,4,5),(2,"The world isn't fair. Get your shit together.",0.25,2,2),(3,"You'll land on your feet.",0.25,1,5), (4,"There's more than one fish in the pond.",0.25,2,4)]
         
     
-        os.chdir("C:\sqlite")
+        os.chdir("C:\Users/Jared/CrowdGen/CrowdSourceProject/_CurrentCode/CurrentVersion")
  
         self.conn = lite.connect('Crowdsource_Project.db')
         self.curr = self.conn.cursor()    
@@ -149,12 +149,13 @@ if __name__ == '__main__':
 
 
     storeUsers=[]
-    
+
     CurrentQuestionPrompt=""
     options=["",""]
     #get actual option value in database
     
     #getQuestion=getQuestion = Random()
+    number_of_responses = 4
     iteration=0
     question=database.get_questions()
     for prompt_statements in xrange(4):
@@ -236,24 +237,33 @@ if __name__ == '__main__':
             
             print "1. "+prompt1_output[0]
             print "2. "+prompt2_output[0]
-            
+            print "3. Choose your own response."
+                        
             chosen_response=raw_input("Press your prefered choice: \n")
-            chosen_response=associated_result[int(chosen_response)]
-            
-            current_value_in_db="choice"+str(chosen_response+1) #the selection in the database to get value
-            
-            #get the current number of times the given value was chosen in the db
-            current_user_results=database.get_history()[users][current_value_in_db] #numeric amount of 'choice current_value_in_db' in database
-            
-            incremented_choice_for_user=current_user_results+1
-            
-            #a hash of the different prompt functino which relate to updated different values in the db
-            hashFunctions_Prompts={"choice1":database.set_weights_choice1,"choice2":database.set_weights_choice2,"choice3":database.set_weights_choice3,"choice4":database.set_weights_choice4}
-            
-            #selects which choice prompt to incremenet
-            set_weights=hashFunctions_Prompts[current_value_in_db]
-            set_weights(users,incremented_choice_for_user)
-            #set_weights_choice1
+            if chosen_response = "3":
+                new_response=raw_input("Type your own response: \n")
+                column_name = "choice"+str(number_of_responses)
+                self.curr.execute('alter table weighting add column ? integer',column_name)
+                for all_users in xrange(5):
+                    self.curr.execute('update weighting set ? = 0 where user_id = ?',(str(number_of_responses),all_users))
+                self.curr.execute('insert into prompt_choices values (?,?,?,0,0)',(number_of_responses, new_response,1/number_of_responses))
+            else:
+                chosen_response=associated_result[int(chosen_response)]
+                
+                current_value_in_db="choice"+str(chosen_response+1) #the selection in the database to get value
+                
+                #get the current number of times the given value was chosen in the db
+                current_user_results=database.get_history()[users][current_value_in_db] #numeric amount of 'choice current_value_in_db' in database
+                
+                incremented_choice_for_user=current_user_results+1
+                
+                #a hash of the different prompt functino which relate to updated different values in the db
+                hashFunctions_Prompts={"choice1":database.set_weights_choice1,"choice2":database.set_weights_choice2,"choice3":database.set_weights_choice3,"choice4":database.set_weights_choice4}
+                
+                #selects which choice prompt to incremenet
+                set_weights=hashFunctions_Prompts[current_value_in_db]
+                set_weights(users,incremented_choice_for_user)
+                #set_weights_choice1
             
             print "USER RESULTS"
             print users
