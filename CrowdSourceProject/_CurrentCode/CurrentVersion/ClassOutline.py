@@ -356,7 +356,7 @@ class Response_Updater():
             print "probabilities"
             print normalization
             
-            indices = [0,1,2,3]
+            indices = range(len(prompt_choices_table))
             new_responses = []
             
             #print normalization
@@ -366,7 +366,7 @@ class Response_Updater():
 
             allowed1 = []
             
-            for i in xrange(4):
+            for i in xrange(len(prompt_choices_table)):
                  if sum(normalization[:i+1])-ball1 >= 0: 
                      allowed1.append(i)  
             new_choice1 = min(allowed1)
@@ -382,7 +382,7 @@ class Response_Updater():
             #second draw
             ball2 = rand.random()
             allowed2 = []
-            for i in xrange(3):
+            for i in xrange(len(prompt_choices_table)-1):
                  if sum(normalization2[:i+1])-ball2 >= 0: 
                      allowed2.append(i)  
             temp_choice2 = min(allowed2)

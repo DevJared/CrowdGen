@@ -47,7 +47,10 @@ class Database():
         else:
             history = {}
             for row in hist:
-                history.update({row[0]:{'weight': row[1], 'choice1': row[2],'choice2': row[3],'choice3': row[4],'choice4': row[5]}})
+                history.update({row[0]:{'weight': row[1]}})
+                num_resp = self.number_of_responses()[0]
+                for i in xrange(num_resp):
+                    history[row[0]]['choice'+str(i+1)] = row[i+2]
             return history
         
     #prompt_questions (prompt_id (pkey), prompt_text STRING) 
@@ -73,13 +76,9 @@ class Database():
         
     #prompt_choices (choice_id (pkey) STRING, choice_text TEXT, choice_value REAL, number_chosen INTEGER, number_shown INTEGER)
     
-    def new_choice(self, choices = []):
-        for i in choices:
-            self.curr.execute('select count(*) from prompt_choices')
-            count = self.curr.fetchone()
-            #do we want last three parameters to be 0?
-            self.curr.execute('insert into prompt_choices values (?,?,0,0,0)',(count[0],i))  
-            self.choices.append((count[0],i,0,0,0))          
+    #user generates choice
+    def new_choice(self, choice_id,choice_text,choice_value):
+        self.curr.execute('insert into prompt_choices values (?,?,?,1,1)',(choice_id,choice_text,choice_value))  
         self.conn.commit()
     
     def default_choices(self):
@@ -93,27 +92,20 @@ class Database():
   
         self.curr.execute('update prompt_choices set choice_value = ? where choice_id = ?', (val,id))
         self.conn.commit()
-        
-    def set_weights_choice1(self, id, val):
-  
-        self.curr.execute('update weighting set choice1 = ? where user_id = ?', (val,id))
-        self.conn.commit()
+       
+    def set_choice_number_chosen(self, chosen,id):
+        self.curr.execute('update prompt_choices set number_chosen = ? where choice_id = ?', (chosen,id))
+        self.conn.commit()    
+               
+    #update number chosen/shown
+    def set_choice_number_shown(self, shown,id):
+        self.curr.execute('update prompt_choices set number_shown = ? where choice_id = ?', (shown,id))
+        self.conn.commit()     
     
-    def set_weights_choice2(self, id, val):
-  
-        self.curr.execute('update weighting set choice2 = ? where user_id = ?', (val,id))
+    #for user    
+    def set_choice_number(self,id,val,choice):
+        self.curr.execute("update weighting set {} = ? where user_id = ?".format(choice), (val,id))
         self.conn.commit()
-    
-    def set_weights_choice3(self, id, val):
-  
-        self.curr.execute('update weighting set choice3 = ? where user_id = ?', (val,id))
-        self.conn.commit()
-    
-    def set_weights_choice4(self, id, val):
-  
-        self.curr.execute('update weighting set choice4 = ? where user_id = ?', (val,id))
-        self.conn.commit()
-            
             
    #all choices
     def get_choices(self):
@@ -132,7 +124,15 @@ class Database():
         if not text:
             print "No Choices"
         else: return text
-                               
+    
+    def alter_weighting(self, column_name):
+        print column_name
+        self.curr.execute("alter table weighting add column '%s' INTEGER" % column_name)
+    
+    def number_of_responses(self):
+        self.curr.execute('select count(*) from prompt_choices')
+        return self.curr.fetchone()
+                                      
     def close(self):
             self.conn.close()
                          
@@ -155,7 +155,8 @@ if __name__ == '__main__':
     #get actual option value in database
     
     #getQuestion=getQuestion = Random()
-    number_of_responses = 4
+    number_of_responses = database.number_of_responses()[0]
+    print number_of_responses
     iteration=0
     question=database.get_questions()
     for prompt_statements in xrange(4):
@@ -164,10 +165,10 @@ if __name__ == '__main__':
         userScores=None
         if iteration==0:
             for i in xrange(5):
-                database.set_weights_choice1(i,0)
-                database.set_weights_choice2(i,0)
-                database.set_weights_choice3(i,0)
-                database.set_weights_choice4(i,0)
+                database.set_choice_number(i,0,'choice1')
+                database.set_choice_number(i,0,'choice2')
+                database.set_choice_number(i,0,'choice3')
+                database.set_choice_number(i,0,'choice4')
                 database.set_weights(i,0)
                 database.default_choices()
             clusterComponent.updateClusters(None,startingUsers_Fake,None)
@@ -175,14 +176,15 @@ if __name__ == '__main__':
             for userDict in userScores:
                 database.set_weights(userDict["id"],userDict["score"])
            
-            for choice_prompt_id in xrange(4):
+            for choice_prompt_id in xrange(number_of_responses):
                 score=1.0/4.0
                 database.set_choice(choice_prompt_id, score)
         else:
              weights = database.get_history()
              user_matrix = []
              for i in xrange(5):
-                    user_matrix.append([weights[i]['choice1'],weights[i]['choice2'],weights[i]['choice3'],weights[i]['choice4']])
+                    [weights[i]['choice'+str(j+1)] for j in range(number_of_responses)]
+                    #user_matrix.append([weights[i]['choice1'],weights[i]['choice2'],weights[i]['choice3'],weights[i]['choice4']])
              clusterComponent.updateClusters(None,user_matrix,None)
              users_weightings=response.calculate_All_User_Weights(clusterComponent, user_matrix)
              
@@ -206,7 +208,7 @@ if __name__ == '__main__':
              
              
              userHistory=database.get_history()
-             for i in xrange(4):
+             for i in xrange(number_of_responses):
                 score=response.assign_Response_Score('choice'+str(i+1),userHistory,None)
                 database.set_choice(i,score)
              response.select_Responses_to_Present(5,database.get_choices())
@@ -227,30 +229,45 @@ if __name__ == '__main__':
         '''
         print choices_presented_to_user 
         for users in range(5):
+            updated_choices = database.get_choices()
             print "\n"+question[0][0] +"\n"
             print "\n Please select the response that will be helpful to this person:"
             prompt1_id=choices_presented_to_user[users][0]
             prompt2_id=choices_presented_to_user[users][1]
             prompt1_output=database.get_choice(int(prompt1_id))
             prompt2_output=database.get_choice(int(prompt2_id))
-            associated_result={1:prompt1_id,2:prompt2_id}
+            
+            number_chosen1 = updated_choices[prompt1_id][3] #number chosen
+            number_shown1 = updated_choices[prompt1_id][4] #number shown
+            
+            number_chosen2 = updated_choices[prompt2_id][3] 
+            number_shown2 = updated_choices[prompt2_id][4]
+            
+            associated_result={1:[prompt1_id,number_chosen1],2:[prompt2_id,number_chosen2]}
             
             print "1. "+prompt1_output[0]
             print "2. "+prompt2_output[0]
             print "3. Choose your own response."
                         
+            database.set_choice_number_shown(number_shown1+1,prompt1_id)
+            database.set_choice_number_shown(number_shown2+1,prompt2_id)
+            
             chosen_response=raw_input("Press your prefered choice: \n")
-            if chosen_response = "3":
+
+            if chosen_response == "3":
+                number_of_responses += 1
                 new_response=raw_input("Type your own response: \n")
                 column_name = "choice"+str(number_of_responses)
-                self.curr.execute('alter table weighting add column ? integer',column_name)
+                database.alter_weighting(column_name)
                 for all_users in xrange(5):
-                    self.curr.execute('update weighting set ? = 0 where user_id = ?',(str(number_of_responses),all_users))
-                self.curr.execute('insert into prompt_choices values (?,?,?,0,0)',(number_of_responses, new_response,1/number_of_responses))
+                    database.set_choice_number(all_users,0,'choice'+str(number_of_responses))
+                database.set_choice_number(users,1,'choice'+str(number_of_responses)) #update user who selected 3
+                database.new_choice(number_of_responses-1, new_response,1.0/number_of_responses)
             else:
-                chosen_response=associated_result[int(chosen_response)]
+                choice=associated_result[int(chosen_response)][0]
+                database.set_choice_number_chosen(associated_result[int(chosen_response)][1]+1,choice)
                 
-                current_value_in_db="choice"+str(chosen_response+1) #the selection in the database to get value
+                current_value_in_db="choice"+str(choice+1) #the selection in the database to get value
                 
                 #get the current number of times the given value was chosen in the db
                 current_user_results=database.get_history()[users][current_value_in_db] #numeric amount of 'choice current_value_in_db' in database
@@ -258,12 +275,11 @@ if __name__ == '__main__':
                 incremented_choice_for_user=current_user_results+1
                 
                 #a hash of the different prompt functino which relate to updated different values in the db
-                hashFunctions_Prompts={"choice1":database.set_weights_choice1,"choice2":database.set_weights_choice2,"choice3":database.set_weights_choice3,"choice4":database.set_weights_choice4}
-                
+                #hashFunctions_Prompts={"choice1":database.set_weights_choice1,"choice2":database.set_weights_choice2,"choice3":database.set_weights_choice3,"choice4":database.set_weights_choice4}
+                #########NEEEEEEEEEEEED TOOOOO FIXXXXX
                 #selects which choice prompt to incremenet
-                set_weights=hashFunctions_Prompts[current_value_in_db]
-                set_weights(users,incremented_choice_for_user)
-                #set_weights_choice1
+                database.set_choice_number(users,incremented_choice_for_user,current_value_in_db)
+
             
             print "USER RESULTS"
             print users
